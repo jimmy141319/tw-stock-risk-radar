@@ -1,131 +1,128 @@
+let mode = "market";
 function n(id){ return Number(document.getElementById(id).value || 0); }
-function s(id){ return document.getElementById(id).value.trim(); }
+function v(id){ return document.getElementById(id).value; }
 
-function kdFromOhlc(text){
-  const rows = text.trim().split(/\n+/).map(line => line.split(",").map(x => x.trim()));
-  let k = 50, d = 50, j = 50;
-  const data = rows.map(r => ({date:r[0], high:+r[1], low:+r[2], close:+r[3]})).filter(x => Number.isFinite(x.high+x.low+x.close));
-  for(let i=0;i<data.length;i++){
-    const start = Math.max(0, i-8);
-    const slice = data.slice(start, i+1);
-    const hh = Math.max(...slice.map(x=>x.high));
-    const ll = Math.min(...slice.map(x=>x.low));
-    const rsv = hh === ll ? 50 : (data[i].close - ll) / (hh - ll) * 100;
-    k = k * 2/3 + rsv * 1/3;
-    d = d * 2/3 + k * 1/3;
-    j = 3*k - 2*d;
-  }
-  return {k,d,j};
+function setMode(next){
+  mode = next;
+  document.getElementById("marketPanel").classList.toggle("hidden", mode !== "market");
+  document.getElementById("stockPanel").classList.toggle("hidden", mode !== "stock");
+  document.getElementById("marketModeBtn").classList.toggle("active", mode === "market");
+  document.getElementById("stockModeBtn").classList.toggle("active", mode === "stock");
+  document.getElementById("resultTitle").textContent = mode === "market" ? "今日大盤風險結果" : "今日個股風險結果";
+  render();
 }
 
-function scoreRisk(){
-  const closePrice = n("closePrice");
-  const pricePct = n("pricePct");
-  const volume = n("volume");
-  const avgVol20 = Math.max(1,n("avgVol20"));
-  const volRatio = volume / avgVol20;
-
-  const foreignNet = n("foreignNet");
-  const trustNet = n("trustNet");
-  const dealerNet = n("dealerNet");
-  const instNet = foreignNet + trustNet + dealerNet;
-  const marginChange = n("marginChange");
-  const retailChange = n("retailChange");
-  const bigHolderChange = n("bigHolderChange");
-  const k = n("kValue"), d = n("dValue"), j = n("jValue");
-
-  const turnover = Math.max(1,n("marketTurnover"));
-  const instBuy = n("instBuyValue");
-  const instSell = n("instSellValue");
-  const foreignBuy = n("foreignBuyValue");
-  const foreignSell = n("foreignSellValue");
-
-  let score = 0;
-  let reasons = [];
-
-  if(volRatio >= 1.8 && pricePct <= 0){ score += 25; reasons.push("爆量但價格轉弱：量價背離，疑似高檔換手。");}
-  else if(volRatio >= 1.5 && pricePct < 1){ score += 18; reasons.push("成交量明顯放大，但價格推升不足。");}
-  else if(volRatio >= 1.2 && pricePct > 0){ score += 6; reasons.push("量增價漲，短線偏熱但尚未失控。");}
-  else if(volRatio < .8){ score += 3; reasons.push("量縮，暫時不是爆量出貨型態。");}
-
-  if(foreignNet < 0) { score += 14; reasons.push("外資賣超，需注意法人高檔調節。");}
-  if(instNet < 0) { score += 10; reasons.push("三大法人合計賣超。");}
-  if(marginChange > 0) { score += 14; reasons.push("融資增加，散戶槓桿承接風險上升。");}
-  if(retailChange > 0) { score += 14; reasons.push("小散戶占比／人數增加。");}
-  if(bigHolderChange < 0) { score += 18; reasons.push("千張大戶占比下降，籌碼集中度轉弱。");}
-
-  if(k > 80 && d > 80 && k < d) { score += 10; reasons.push("KD 高檔死亡交叉，短線轉弱。");}
-  else if(k > 80 && d > 80) { score += 6; reasons.push("KD 高檔鈍化，過熱需防震盪。");}
-  else if(k < 20 && d < 20) { score -= 4; reasons.push("KD 低檔，短線賣壓可能已釋放一部分。");}
-
-  const instParticipation = Math.min(100, Math.max(0, (instBuy + instSell) / (2 * turnover) * 100));
-  const foreignParticipation = Math.min(100, Math.max(0, (foreignBuy + foreignSell) / (2 * turnover) * 100));
-  const otherParticipation = Math.max(0, 100 - instParticipation);
-
-  if(instParticipation > 55){ score += 8; reasons.push("法人交易參與率偏高，代表盤面受外資／法人主導。");}
-  if(foreignSell > foreignBuy && foreignParticipation > 35){ score += 8; reasons.push("外資參與率高且賣出大於買進。");}
-
-  score = Math.max(0, Math.min(100, Math.round(score)));
-
-  let level = "偏健康", cls = "good", conclusion = "先觀察，不追高，若持股可依停利線續抱。";
-  if(score >= 70){ level = "偏危險"; cls = "danger"; conclusion = "高檔換手／出貨風險高：避免追價，嚴控部位，等量縮或籌碼回穩。"; }
-  else if(score >= 45){ level = "觀察中"; cls = "watch"; conclusion = "盤面偏熱：可以研究，但不適合重押，等收盤籌碼確認。"; }
-
-  const volSignal = `量比 ${volRatio.toFixed(2)} 倍；漲跌幅 ${pricePct.toFixed(2)}%。${volRatio>=1.5 ? "量能已放大，量比價更重要。" : "量能尚未進入爆量區。"}`;
-  const chipSignal = `外資 ${foreignNet.toLocaleString()} 張、三大法人合計 ${instNet.toLocaleString()} 張、融資 ${marginChange.toLocaleString()} 張。`;
-  const holderSignal = `小散戶變化 ${retailChange.toFixed(2)}%，千張大戶變化 ${bigHolderChange.toFixed(2)}%。法人參與率估 ${instParticipation.toFixed(1)}%，外資參與率估 ${foreignParticipation.toFixed(1)}%，其他交易估 ${otherParticipation.toFixed(1)}%。`;
-
-  return {score, level, cls, conclusion, reasons, volSignal, chipSignal, holderSignal, instParticipation, foreignParticipation, otherParticipation};
+function classify(score){
+  if(score >= 70) return ["偏危險","danger"];
+  if(score >= 45) return ["觀察中","watch"];
+  return ["偏健康","good"];
 }
+
+function analyzeMarket(){
+  const twiiPct=n("m_twiiPct"), turnover=n("m_turnover"), avg=Math.max(1,n("m_avgTurnover20"));
+  const volRatio=turnover/avg;
+  const otcPct=n("m_otcPct"), futChange=n("m_futChange");
+  const foreign=n("m_foreignNet"), trust=n("m_trustNet"), dealer=n("m_dealerNet"), instNet=foreign+trust+dealer;
+  const futureNetChange=n("m_futureNetChange");
+  const marginChange=n("m_marginChange"), marginTotal=n("m_marginTotal");
+  const retailPeople=n("m_retailPeopleChange"), retailRatio=n("m_retailRatioChange"), big=n("m_bigHolderChange"), heat=n("m_retailHeat");
+  const k=n("m_k"), d=n("m_d"), usdtwd=n("m_usdtwd"), fxWarn=n("m_fxWarn"), aiWeight=n("m_aiWeight"), aiWeak=v("m_aiWeak");
+  const instBuy=n("m_instBuy"), instSell=n("m_instSell");
+  const instParticipation=Math.min(100, Math.max(0, (instBuy+instSell)/(2*Math.max(1,turnover))*100));
+  const otherParticipation=Math.max(0,100-instParticipation);
+
+  let score=0, reasons=[];
+  if(volRatio>=1.5 && twiiPct<=0){score+=28; reasons.push("大盤爆量翻黑：量價背離，是高檔換手最重要警訊。");}
+  else if(volRatio>=1.4 && twiiPct<0.5){score+=22; reasons.push("成交金額高於均量很多，但指數推升不足。");}
+  else if(volRatio>=1.2 && twiiPct>0){score+=8; reasons.push("量增價漲，短線偏熱。");}
+
+  if(foreign<0){score+=14; reasons.push("外資賣超，法人高檔調節風險上升。");}
+  if(instNet<0){score+=10; reasons.push("三大法人合計賣超。");}
+  if(futureNetChange<0){score+=10; reasons.push("外資期貨部位偏空變化，短線避險味道提高。");}
+  if(marginChange>0){score+=14; reasons.push("融資餘額增加，散戶槓桿承接風險上升。");}
+  if(retailPeople>0 || retailRatio>0){score+=14; reasons.push("散戶股東人數或小散戶級距上升。");}
+  if(big<0){score+=16; reasons.push("千張大戶占比下降，籌碼集中度轉弱。");}
+  if(otcPct<twiiPct){score+=8; reasons.push("櫃買弱於加權，中小型股承壓。");}
+  if(futChange<0 && twiiPct<0){score+=8; reasons.push("台指期同步轉弱，期貨市場偏保守。");}
+  if(k>80 && d>80 && k<d){score+=10; reasons.push("大盤 KD 高檔死亡交叉。");}
+  else if(k>80 && d>80){score+=6; reasons.push("大盤 KD 高檔過熱。");}
+  if(usdtwd>=fxWarn && aiWeight>=70){score+=8; reasons.push("弱台幣放大 AI 出口財報，但也壓縮民眾購買力。");}
+  if(aiWeak==="yes"){score+=12; reasons.push("AI / 電子權值主線轉弱，台股支撐風險升高。");}
+  if(heat>=8){score+=8; reasons.push("散戶熱度高，FOMO 追價風險升高。");}
+  if(instParticipation>55){score+=6; reasons.push("法人交易參與率偏高，盤面受法人與外資主導。");}
+
+  score=Math.max(0,Math.min(100,Math.round(score)));
+  const [level,cls]=classify(score);
+  let conclusion="大盤暫時偏健康，可觀察量能是否延續。";
+  if(score>=70) conclusion="大盤高檔換手 / 出貨風險高：不追高，等待量縮、外資回補、融資降溫。";
+  else if(score>=45) conclusion="大盤偏熱：可以研究，但不適合重押，收盤後要確認法人、融資與集保。";
+
+  return {
+    score,level,cls,conclusion,reasons,
+    target:"加權指數 / 大盤",
+    volSignal:`成交金額 ${turnover.toLocaleString()} 億，20日均量 ${avg.toLocaleString()} 億，量比 ${volRatio.toFixed(2)} 倍；加權漲跌幅 ${twiiPct.toFixed(2)}%。`,
+    chipSignal:`外資 ${foreign.toLocaleString()} 億、三大法人合計 ${instNet.toLocaleString()} 億、融資增減 ${marginChange.toLocaleString()} 億。`,
+    holderSignal:`散戶人數 ${retailPeople.toFixed(2)}%，小散戶 ${retailRatio.toFixed(2)}%，千張大戶 ${big.toFixed(2)}%。法人參與率估 ${instParticipation.toFixed(1)}%，其他交易估 ${otherParticipation.toFixed(1)}%。`
+  };
+}
+
+function analyzeStock(){
+  const pct=n("s_pct"), vol=n("s_vol"), avg=Math.max(1,n("s_avgVol")), volRatio=vol/avg;
+  const foreign=n("s_foreign"), trust=n("s_trust"), dealer=n("s_dealer"), inst=foreign+trust+dealer;
+  const margin=n("s_margin"), retail=n("s_retail"), big=n("s_big"), k=n("s_k"), d=n("s_d");
+  let score=0, reasons=[];
+  if(volRatio>=1.8 && pct<=0){score+=25; reasons.push("個股爆量翻黑，疑似高檔換手。");}
+  else if(volRatio>=1.5 && pct<1){score+=18; reasons.push("個股量增但價格推升不足。");}
+  if(foreign<0){score+=14; reasons.push("外資賣超。");}
+  if(inst<0){score+=10; reasons.push("三大法人合計賣超。");}
+  if(margin>0){score+=14; reasons.push("融資增加。");}
+  if(retail>0){score+=14; reasons.push("小散戶占比增加。");}
+  if(big<0){score+=18; reasons.push("千張大戶占比下降。");}
+  if(k>80 && d>80 && k<d){score+=10; reasons.push("KD 高檔死亡交叉。");}
+  score=Math.max(0,Math.min(100,Math.round(score)));
+  const [level,cls]=classify(score);
+  let conclusion=score>=70?"個股高檔換手 / 出貨風險高：避免追價。":score>=45?"個股偏熱，先觀察籌碼確認。":"個股暫時偏健康。";
+  return {
+    score,level,cls,conclusion,reasons,target:document.getElementById("s_code").value+" "+document.getElementById("s_name").value,
+    volSignal:`量比 ${volRatio.toFixed(2)} 倍；漲跌幅 ${pct.toFixed(2)}%。`,
+    chipSignal:`外資 ${foreign.toLocaleString()} 張、三大法人合計 ${inst.toLocaleString()} 張、融資 ${margin.toLocaleString()} 張。`,
+    holderSignal:`小散戶 ${retail.toFixed(2)}%，千張大戶 ${big.toFixed(2)}%。`
+  };
+}
+
+function getResult(){return mode==="market"?analyzeMarket():analyzeStock();}
 
 function render(){
-  const r = scoreRisk();
-  const badge = document.getElementById("riskBadge");
-  badge.textContent = r.level;
-  badge.className = "risk-badge " + r.cls;
-  document.getElementById("scoreLine").innerHTML = `風險分數：<span class="${r.cls}">${r.score}</span> / 100　｜　${r.level}`;
-  document.getElementById("resultText").innerHTML = `
+  const r=getResult();
+  document.getElementById("riskBadge").textContent=r.level;
+  document.getElementById("riskBadge").className="risk-badge "+r.cls;
+  document.getElementById("scoreLine").innerHTML=`風險分數：<span class="${r.cls}">${r.score}</span> / 100　｜　${r.level}`;
+  document.getElementById("meterBar").style.width=r.score+"%";
+  document.getElementById("resultText").innerHTML=`
+    <p><b>監控標的：</b>${r.target}</p>
     <p><b>結論：</b>${r.conclusion}</p>
     <p><b>主要原因：</b></p>
-    <ul>${r.reasons.map(x=>`<li>${x}</li>`).join("")}</ul>
-    <p><b>成交占比估算：</b>三大法人約 ${r.instParticipation.toFixed(1)}%，外資約 ${r.foreignParticipation.toFixed(1)}%，其餘交易約 ${r.otherParticipation.toFixed(1)}%。注意：其餘交易不等於純散戶，裡面可能包含主力、大戶、公司派與一般投資人。</p>
+    <ul>${r.reasons.map(x=>`<li>${x}</li>`).join("") || "<li>目前未出現明顯高風險組合。</li>"}</ul>
   `;
-  document.getElementById("meterBar").style.width = r.score + "%";
-  document.getElementById("volSignal").textContent = r.volSignal;
-  document.getElementById("chipSignal").textContent = r.chipSignal;
-  document.getElementById("holderSignal").textContent = r.holderSignal;
+  document.getElementById("volSignal").textContent=r.volSignal;
+  document.getElementById("chipSignal").textContent=r.chipSignal;
+  document.getElementById("holderSignal").textContent=r.holderSignal;
 }
 
 function saveHistory(){
-  const r = scoreRisk();
-  const item = {
-    date:new Date().toISOString().slice(0,10),
-    stock:s("stockCode")+" "+s("stockName"),
-    level:r.level, score:r.score,
-    vol:r.volSignal, chip:r.chipSignal, conclusion:r.conclusion
-  };
-  const arr = JSON.parse(localStorage.getItem("twRiskHistory") || "[]");
-  arr.unshift(item);
-  localStorage.setItem("twRiskHistory", JSON.stringify(arr.slice(0,80)));
+  const r=getResult();
+  const arr=JSON.parse(localStorage.getItem("twRiskHistoryV2")||"[]");
+  arr.unshift({date:new Date().toISOString().slice(0,10),mode:mode==="market"?"大盤":"個股",target:r.target,level:r.level,score:r.score,conclusion:r.conclusion});
+  localStorage.setItem("twRiskHistoryV2",JSON.stringify(arr.slice(0,100)));
   renderHistory();
 }
-
 function renderHistory(){
-  const arr = JSON.parse(localStorage.getItem("twRiskHistory") || "[]");
-  document.querySelector("#historyTable tbody").innerHTML = arr.map(x => `
-    <tr><td>${x.date}</td><td>${x.stock}</td><td>${x.level}</td><td>${x.score}</td><td>${x.vol}</td><td>${x.chip}</td><td>${x.conclusion}</td></tr>
-  `).join("");
+  const arr=JSON.parse(localStorage.getItem("twRiskHistoryV2")||"[]");
+  document.querySelector("#historyTable tbody").innerHTML=arr.map(x=>`<tr><td>${x.date}</td><td>${x.mode}</td><td>${x.target}</td><td>${x.level}</td><td>${x.score}</td><td>${x.conclusion}</td></tr>`).join("");
 }
-
-document.getElementById("analyzeBtn").addEventListener("click", render);
-document.getElementById("saveBtn").addEventListener("click", () => { render(); saveHistory(); });
-document.getElementById("clearBtn").addEventListener("click", () => { localStorage.removeItem("twRiskHistory"); renderHistory(); });
-document.getElementById("calcKD").addEventListener("click", () => {
-  const out = kdFromOhlc(document.getElementById("ohlcText").value);
-  document.getElementById("kValue").value = out.k.toFixed(2);
-  document.getElementById("dValue").value = out.d.toFixed(2);
-  document.getElementById("jValue").value = out.j.toFixed(2);
-  render();
-});
-renderHistory();
-render();
+document.getElementById("marketModeBtn").onclick=()=>setMode("market");
+document.getElementById("stockModeBtn").onclick=()=>setMode("stock");
+document.getElementById("analyzeBtn").onclick=render;
+document.getElementById("saveBtn").onclick=()=>{render();saveHistory();};
+document.getElementById("clearBtn").onclick=()=>{localStorage.removeItem("twRiskHistoryV2");renderHistory();};
+renderHistory();render();

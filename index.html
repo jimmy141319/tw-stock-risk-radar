@@ -3,128 +3,163 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>台股每日風險監控雷達</title>
+  <title>台股風險監控雷達｜個股＋大盤</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <main class="wrap">
     <header class="hero">
-      <div>
-        <p class="eyebrow">TAIWAN STOCK RISK RADAR</p>
-        <h1>台股每日風險監控雷達</h1>
-        <p class="sub">用「量價、外資、融資、散戶、大戶、KD」每天判斷：健康換手，還是高檔出貨。</p>
+      <p class="eyebrow">TAIWAN STOCK & MARKET RISK RADAR</p>
+      <h1>台股風險監控雷達</h1>
+      <p class="sub">這版多加「大盤模式」：可切換個股 / 大盤，每天用量價、外資、融資、散戶、大戶、KD、匯率判斷風險。</p>
+
+      <div class="mode-tabs">
+        <button id="marketModeBtn" class="tab active">大盤監控</button>
+        <button id="stockModeBtn" class="tab">個股監控</button>
       </div>
+
       <div class="risk-badge" id="riskBadge">等待輸入</div>
     </header>
 
-    <section class="grid two">
-      <div class="card">
-        <h2>① 監控標的</h2>
-        <div class="form-grid">
-          <label>股票代號 <input id="stockCode" value="2330"></label>
-          <label>股票名稱 <input id="stockName" value="台積電"></label>
-          <label>收盤價 <input id="closePrice" type="number" step="0.01" value="1000"></label>
-          <label>漲跌幅 % <input id="pricePct" type="number" step="0.01" value="-1.5"></label>
-          <label>今日成交量 <input id="volume" type="number" value="80000"></label>
-          <label>20日均量 <input id="avgVol20" type="number" value="52000"></label>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2>② 籌碼與散戶</h2>
-        <div class="form-grid">
-          <label>外資買賣超（張）<input id="foreignNet" type="number" value="-8000"></label>
-          <label>投信買賣超（張）<input id="trustNet" type="number" value="1200"></label>
-          <label>自營商買賣超（張）<input id="dealerNet" type="number" value="-900"></label>
-          <label>融資增減（張）<input id="marginChange" type="number" value="2200"></label>
-          <label>小散戶占比變化 % <input id="retailChange" type="number" step="0.01" value="0.45"></label>
-          <label>千張大戶占比變化 % <input id="bigHolderChange" type="number" step="0.01" value="-0.35"></label>
-        </div>
-        <p class="hint">小散戶建議用 TDCC 集保：1–10張或1–15張級距。千張大戶用 1000張以上級距。</p>
-      </div>
+    <section class="card result-card">
+      <h2 id="resultTitle">今日大盤風險結果</h2>
+      <div id="scoreLine" class="score-line">尚未計算</div>
+      <div class="meter"><span id="meterBar"></span></div>
+      <div id="resultText" class="result-text"></div>
     </section>
 
-    <section class="grid two">
-      <div class="card">
-        <h2>③ KD / KDJ 指標</h2>
-        <div class="form-grid">
-          <label>K 值 <input id="kValue" type="number" step="0.01" value="78"></label>
-          <label>D 值 <input id="dValue" type="number" step="0.01" value="82"></label>
-          <label>J 值 <input id="jValue" type="number" step="0.01" value="70"></label>
+    <section id="marketPanel">
+      <section class="grid two">
+        <div class="card">
+          <h2>① 大盤量價</h2>
+          <div class="form-grid">
+            <label>加權指數 <input id="m_twii" type="number" step="0.01" value="43837.29"></label>
+            <label>加權漲跌幅 % <input id="m_twiiPct" type="number" step="0.01" value="-0.95"></label>
+            <label>大盤成交金額（億元）<input id="m_turnover" type="number" value="15500"></label>
+            <label>20日平均成交金額（億元）<input id="m_avgTurnover20" type="number" value="10500"></label>
+            <label>櫃買漲跌幅 % <input id="m_otcPct" type="number" step="0.01" value="-0.61"></label>
+            <label>台指期漲跌點 <input id="m_futChange" type="number" step="0.01" value="-768"></label>
+          </div>
+          <p class="hint">量是價的先行指標：高檔爆量、但指數漲不動或翻黑，是第一個危險訊號。</p>
         </div>
-        <details>
-          <summary>用 9 日高低收資料自動計算 KD</summary>
-          <p class="hint">格式：日期,最高,最低,收盤。貼最近 9～30 筆，最後一筆會算今日 KD。</p>
-          <textarea id="ohlcText" rows="8">2026-05-16,980,950,970
-2026-05-17,1000,960,990
-2026-05-18,1020,980,1010
-2026-05-19,1030,990,1000
-2026-05-20,1040,1000,1035
-2026-05-21,1060,1010,1050
-2026-05-22,1070,1030,1045
-2026-05-23,1065,1020,1030
-2026-05-24,1050,990,1000</textarea>
-          <button id="calcKD" class="secondary">用資料計算 KD</button>
-        </details>
-      </div>
 
-      <div class="card">
-        <h2>④ 大盤成交結構估算</h2>
-        <div class="form-grid">
-          <label>大盤成交金額（億元）<input id="marketTurnover" type="number" value="15500"></label>
-          <label>外資買進金額（億元）<input id="foreignBuyValue" type="number" value="5800"></label>
-          <label>外資賣出金額（億元）<input id="foreignSellValue" type="number" value="6200"></label>
-          <label>三大法人買進總額（億元）<input id="instBuyValue" type="number" value="7200"></label>
-          <label>三大法人賣出總額（億元）<input id="instSellValue" type="number" value="7600"></label>
+        <div class="card">
+          <h2>② 法人與外資</h2>
+          <div class="form-grid">
+            <label>外資買賣超（億元）<input id="m_foreignNet" type="number" value="-300"></label>
+            <label>投信買賣超（億元）<input id="m_trustNet" type="number" value="80"></label>
+            <label>自營商買賣超（億元）<input id="m_dealerNet" type="number" value="-50"></label>
+            <label>外資期貨多空淨額變化（口）<input id="m_futureNetChange" type="number" value="-5000"></label>
+            <label>法人買進金額（億元）<input id="m_instBuy" type="number" value="7200"></label>
+            <label>法人賣出金額（億元）<input id="m_instSell" type="number" value="7600"></label>
+          </div>
+          <p class="hint">外資現貨賣超 + 期貨偏空，通常比單看指數更有警示性。</p>
         </div>
-        <p class="hint">估算法：三大法人參與率 ≈（法人買進＋法人賣出）÷（2 × 市場成交金額）。不是精準散戶占比，因主力可能藏在一般交易裡。</p>
-      </div>
+      </section>
+
+      <section class="grid two">
+        <div class="card">
+          <h2>③ 融資、散戶與大戶</h2>
+          <div class="form-grid">
+            <label>融資餘額增減（億元）<input id="m_marginChange" type="number" value="80"></label>
+            <label>融資餘額總額（億元）<input id="m_marginTotal" type="number" value="5360"></label>
+            <label>大盤股東人數變化 % <input id="m_retailPeopleChange" type="number" step="0.01" value="0.35"></label>
+            <label>小散戶級距占比變化 % <input id="m_retailRatioChange" type="number" step="0.01" value="0.25"></label>
+            <label>千張大戶占比變化 % <input id="m_bigHolderChange" type="number" step="0.01" value="-0.30"></label>
+            <label>散戶熱度主觀評分 0-10 <input id="m_retailHeat" type="number" min="0" max="10" value="8"></label>
+          </div>
+          <p class="hint">TDCC 是週資料，大盤散戶變化可先用主要權值股與熱門族群加總觀察。</p>
+        </div>
+
+        <div class="card">
+          <h2>④ KD、匯率與宏觀</h2>
+          <div class="form-grid">
+            <label>大盤 K 值 <input id="m_k" type="number" step="0.01" value="82"></label>
+            <label>大盤 D 值 <input id="m_d" type="number" step="0.01" value="86"></label>
+            <label>美元兌台幣 <input id="m_usdtwd" type="number" step="0.001" value="31.50"></label>
+            <label>AI / 電子權值占比估計 % <input id="m_aiWeight" type="number" step="1" value="80"></label>
+            <label>弱台幣警戒線 <input id="m_fxWarn" type="number" step="0.001" value="31.50"></label>
+            <label>AI 主線是否轉弱
+              <select id="m_aiWeak">
+                <option value="no">否 / 還沒有</option>
+                <option value="yes">是 / 已轉弱</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint">弱台幣會放大出口股財報，但也會壓縮一般民眾購買力。</p>
+        </div>
+      </section>
+    </section>
+
+    <section id="stockPanel" class="hidden">
+      <section class="grid two">
+        <div class="card">
+          <h2>① 個股量價</h2>
+          <div class="form-grid">
+            <label>股票代號 <input id="s_code" value="2330"></label>
+            <label>股票名稱 <input id="s_name" value="台積電"></label>
+            <label>收盤價 <input id="s_close" type="number" step="0.01" value="1000"></label>
+            <label>漲跌幅 % <input id="s_pct" type="number" step="0.01" value="-1.5"></label>
+            <label>今日成交量 <input id="s_vol" type="number" value="80000"></label>
+            <label>20日均量 <input id="s_avgVol" type="number" value="52000"></label>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>② 個股籌碼</h2>
+          <div class="form-grid">
+            <label>外資買賣超（張）<input id="s_foreign" type="number" value="-8000"></label>
+            <label>投信買賣超（張）<input id="s_trust" type="number" value="1200"></label>
+            <label>自營商買賣超（張）<input id="s_dealer" type="number" value="-900"></label>
+            <label>融資增減（張）<input id="s_margin" type="number" value="2200"></label>
+            <label>小散戶占比變化 % <input id="s_retail" type="number" step="0.01" value="0.45"></label>
+            <label>千張大戶占比變化 % <input id="s_big" type="number" step="0.01" value="-0.35"></label>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid two">
+        <div class="card">
+          <h2>③ 個股 KD</h2>
+          <div class="form-grid">
+            <label>K 值 <input id="s_k" type="number" step="0.01" value="78"></label>
+            <label>D 值 <input id="s_d" type="number" step="0.01" value="82"></label>
+          </div>
+        </div>
+        <div class="card">
+          <h2>④ 個股結論</h2>
+          <p class="hint">個股版用來看單一股票是否「爆量漲不動、外資賣、融資增、散戶增、大戶降」。</p>
+        </div>
+      </section>
     </section>
 
     <section class="actions">
-      <button id="analyzeBtn">開始研判今日風險</button>
+      <button id="analyzeBtn">開始研判</button>
       <button id="saveBtn" class="secondary">儲存今天紀錄</button>
       <button id="clearBtn" class="ghost">清除本機紀錄</button>
     </section>
 
-    <section class="card result-card">
-      <h2>今日風險結果</h2>
-      <div id="scoreLine" class="score-line">尚未計算</div>
-      <div id="resultText" class="result-text"></div>
-      <div class="meter"><span id="meterBar"></span></div>
-    </section>
-
     <section class="grid three">
-      <div class="card mini">
-        <h3>量價警訊</h3>
-        <p id="volSignal">—</p>
-      </div>
-      <div class="card mini">
-        <h3>籌碼警訊</h3>
-        <p id="chipSignal">—</p>
-      </div>
-      <div class="card mini">
-        <h3>散戶／大戶</h3>
-        <p id="holderSignal">—</p>
-      </div>
+      <div class="card mini"><h3>量價警訊</h3><p id="volSignal">—</p></div>
+      <div class="card mini"><h3>籌碼警訊</h3><p id="chipSignal">—</p></div>
+      <div class="card mini"><h3>散戶／大戶</h3><p id="holderSignal">—</p></div>
     </section>
 
     <section class="card">
       <h2>本機歷史紀錄</h2>
       <div class="table-wrap">
         <table id="historyTable">
-          <thead><tr><th>日期</th><th>標的</th><th>風險</th><th>分數</th><th>量價</th><th>籌碼</th><th>結論</th></tr></thead>
+          <thead><tr><th>日期</th><th>模式</th><th>標的</th><th>風險</th><th>分數</th><th>結論</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </section>
 
     <footer>
-      <p>監控邏輯：量是價的先行指標。爆量漲不動、融資增加、散戶增加、大戶下降、外資賣超＝高檔換手警訊。</p>
-      <p>提醒：這是風險雷達，不是買賣建議。</p>
+      <p>危險組合：爆量翻黑 + 融資增加 + 外資賣超 + 散戶增加 + 千張大戶下降。</p>
+      <p>這是風險控管工具，不是買賣建議。</p>
     </footer>
   </main>
-
   <script src="app.js"></script>
 </body>
 </html>
