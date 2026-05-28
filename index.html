@@ -1,165 +1,205 @@
 <!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>台股風險監控雷達｜個股＋大盤</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>台股風險監控雷達 V4｜線圖版</title>
+<style>
+:root{--bg:#07111f;--card:#0e1b2d;--text:#eef6ff;--muted:#9fb3c8;--blue:#4da3ff;--green:#34d399;--yellow:#fbbf24;--red:#fb7185;--line:rgba(255,255,255,.12)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(circle at top left,#173a5d 0,#07111f 45%,#050912 100%);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC","Microsoft JhengHei",sans-serif}
+.wrap{width:min(1180px,94vw);margin:0 auto;padding:28px 0 56px}
+.hero,.card{background:linear-gradient(180deg,rgba(18,35,58,.94),rgba(14,27,45,.96));border:1px solid var(--line);border-radius:24px;box-shadow:0 18px 56px rgba(0,0,0,.3)}
+.hero{padding:28px;margin-bottom:18px}.eyebrow{letter-spacing:.18em;color:var(--blue);font-weight:900;font-size:12px;margin:0 0 8px}
+h1{font-size:34px;margin:0 0 10px}.sub{margin:0;color:var(--muted);line-height:1.7}
+.tabs{display:flex;gap:10px;margin-top:18px;flex-wrap:wrap}
+button{border:0;border-radius:16px;padding:13px 18px;font-weight:900;font-size:16px;color:#06111f;background:linear-gradient(135deg,var(--blue),#9bd1ff);cursor:pointer}
+button.tab{background:transparent;color:var(--muted);border:1px solid var(--line)}button.tab.active{background:linear-gradient(135deg,var(--blue),#9bd1ff);color:#06111f}
+button.secondary{background:linear-gradient(135deg,var(--yellow),#ffe08a)}button.ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.badge{margin-top:18px;display:inline-block;min-width:140px;text-align:center;border-radius:999px;border:1px solid var(--line);padding:15px 18px;font-weight:1000;background:#17243a}
+.grid{display:grid;gap:18px;margin:18px 0}.two{grid-template-columns:repeat(2,1fr)}.three{grid-template-columns:repeat(3,1fr)}
+.card{padding:20px}.card h2{font-size:20px;margin:0 0 16px}.card h3{margin:0 0 8px}
+.form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+label{color:var(--muted);font-size:13px;display:flex;flex-direction:column;gap:6px}
+input,select,textarea{width:100%;background:#071322;border:1px solid rgba(255,255,255,.16);border-radius:13px;color:var(--text);padding:12px;font-size:16px}
+textarea{font-family:ui-monospace,Menlo,monospace;line-height:1.45}
+.hint{color:var(--muted);font-size:13px;line-height:1.7}.actions{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0}
+.score-line{font-size:28px;font-weight:1000;margin-bottom:10px}.result-text{line-height:1.8;color:#dcecff}
+.meter{height:14px;background:#071322;border-radius:999px;overflow:hidden;margin:14px 0 18px;border:1px solid var(--line)}.meter span{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--yellow),var(--red));transition:.35s}
+.chart-wrap{position:relative;width:100%;height:320px;background:#071322;border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:8px}
+canvas{width:100%;height:100%}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:720px}
+th,td{border-bottom:1px solid var(--line);padding:10px;text-align:left;color:#dcecff}th{color:var(--muted);font-size:13px}
+.good{color:var(--green)}.watch{color:var(--yellow)}.danger{color:var(--red)}.hidden{display:none}
+footer{color:var(--muted);line-height:1.8;text-align:center;margin-top:26px}
+@media(max-width:820px){.two,.three,.form-grid{grid-template-columns:1fr}h1{font-size:28px}.chart-wrap{height:260px}}
+</style>
 </head>
 <body>
-  <main class="wrap">
-    <header class="hero">
-      <p class="eyebrow">TAIWAN STOCK & MARKET RISK RADAR</p>
-      <h1>台股風險監控雷達</h1>
-      <p class="sub">這版多加「大盤模式」：可切換個股 / 大盤，每天用量價、外資、融資、散戶、大戶、KD、匯率判斷風險。</p>
+<main class="wrap">
+<header class="hero">
+<p class="eyebrow">TAIWAN STOCK & MARKET RISK RADAR V4</p>
+<h1>台股風險監控雷達</h1>
+<p class="sub">V4 加入線圖：可看「風險分數、成交金額、指數、融資」每日趨勢。量是價的先行指標，所以線圖會先看量。</p>
+<div class="tabs"><button id="marketModeBtn" class="tab active" type="button">大盤監控</button><button id="stockModeBtn" class="tab" type="button">個股監控</button></div>
+<div class="badge" id="riskBadge">等待輸入</div>
+</header>
 
-      <div class="mode-tabs">
-        <button id="marketModeBtn" class="tab active">大盤監控</button>
-        <button id="stockModeBtn" class="tab">個股監控</button>
-      </div>
+<section class="card">
+<h2 id="resultTitle">今日大盤風險結果</h2>
+<div id="scoreLine" class="score-line">尚未計算</div>
+<div class="meter"><span id="meterBar"></span></div>
+<div id="resultText" class="result-text"></div>
+</section>
 
-      <div class="risk-badge" id="riskBadge">等待輸入</div>
-    </header>
+<section class="card">
+<h2>趨勢線圖</h2>
+<div class="tabs">
+<button id="chartRiskBtn" class="tab active" type="button">風險分數</button>
+<button id="chartVolBtn" class="tab" type="button">成交金額 / 量</button>
+<button id="chartPriceBtn" class="tab" type="button">指數 / 價格</button>
+<button id="chartMarginBtn" class="tab" type="button">融資</button>
+</div>
+<div class="chart-wrap"><canvas id="trendCanvas"></canvas></div>
+<p class="hint">儲存每天紀錄後，線圖會累積。手機瀏覽器資料存在本機，換手機或清除瀏覽資料會消失。</p>
+</section>
 
-    <section class="card result-card">
-      <h2 id="resultTitle">今日大盤風險結果</h2>
-      <div id="scoreLine" class="score-line">尚未計算</div>
-      <div class="meter"><span id="meterBar"></span></div>
-      <div id="resultText" class="result-text"></div>
-    </section>
+<section id="marketPanel">
+<section class="grid two">
+<div class="card"><h2>① 大盤量價</h2><div class="form-grid">
+<label>加權指數 <input id="m_twii" type="number" step="0.01" value="43837.29"></label>
+<label>加權漲跌幅 % <input id="m_twiiPct" type="number" step="0.01" value="-0.95"></label>
+<label>大盤成交金額（億元）<input id="m_turnover" type="number" value="15500"></label>
+<label>20日平均成交金額（億元）<input id="m_avgTurnover20" type="number" value="10500"></label>
+<label>櫃買漲跌幅 % <input id="m_otcPct" type="number" step="0.01" value="-0.61"></label>
+<label>台指期漲跌點 <input id="m_futChange" type="number" step="0.01" value="-768"></label>
+</div><p class="hint">量是價的先行指標：高檔爆量、但指數漲不動或翻黑，是第一個危險訊號。</p></div>
 
-    <section id="marketPanel">
-      <section class="grid two">
-        <div class="card">
-          <h2>① 大盤量價</h2>
-          <div class="form-grid">
-            <label>加權指數 <input id="m_twii" type="number" step="0.01" value="43837.29"></label>
-            <label>加權漲跌幅 % <input id="m_twiiPct" type="number" step="0.01" value="-0.95"></label>
-            <label>大盤成交金額（億元）<input id="m_turnover" type="number" value="15500"></label>
-            <label>20日平均成交金額（億元）<input id="m_avgTurnover20" type="number" value="10500"></label>
-            <label>櫃買漲跌幅 % <input id="m_otcPct" type="number" step="0.01" value="-0.61"></label>
-            <label>台指期漲跌點 <input id="m_futChange" type="number" step="0.01" value="-768"></label>
-          </div>
-          <p class="hint">量是價的先行指標：高檔爆量、但指數漲不動或翻黑，是第一個危險訊號。</p>
-        </div>
+<div class="card"><h2>② 法人與外資</h2><div class="form-grid">
+<label>外資買賣超（億元）<input id="m_foreignNet" type="number" value="-300"></label>
+<label>投信買賣超（億元）<input id="m_trustNet" type="number" value="80"></label>
+<label>自營商買賣超（億元）<input id="m_dealerNet" type="number" value="-50"></label>
+<label>外資期貨多空淨額變化（口）<input id="m_futureNetChange" type="number" value="-5000"></label>
+<label>法人買進金額（億元）<input id="m_instBuy" type="number" value="7200"></label>
+<label>法人賣出金額（億元）<input id="m_instSell" type="number" value="7600"></label>
+</div></div>
+</section>
 
-        <div class="card">
-          <h2>② 法人與外資</h2>
-          <div class="form-grid">
-            <label>外資買賣超（億元）<input id="m_foreignNet" type="number" value="-300"></label>
-            <label>投信買賣超（億元）<input id="m_trustNet" type="number" value="80"></label>
-            <label>自營商買賣超（億元）<input id="m_dealerNet" type="number" value="-50"></label>
-            <label>外資期貨多空淨額變化（口）<input id="m_futureNetChange" type="number" value="-5000"></label>
-            <label>法人買進金額（億元）<input id="m_instBuy" type="number" value="7200"></label>
-            <label>法人賣出金額（億元）<input id="m_instSell" type="number" value="7600"></label>
-          </div>
-          <p class="hint">外資現貨賣超 + 期貨偏空，通常比單看指數更有警示性。</p>
-        </div>
-      </section>
+<section class="grid two">
+<div class="card"><h2>③ 融資、散戶與大戶</h2><div class="form-grid">
+<label>融資餘額增減（億元）<input id="m_marginChange" type="number" value="80"></label>
+<label>融資餘額總額（億元）<input id="m_marginTotal" type="number" value="5360"></label>
+<label>大盤股東人數變化 % <input id="m_retailPeopleChange" type="number" step="0.01" value="0.35"></label>
+<label>小散戶級距占比變化 % <input id="m_retailRatioChange" type="number" step="0.01" value="0.25"></label>
+<label>千張大戶占比變化 % <input id="m_bigHolderChange" type="number" step="0.01" value="-0.30"></label>
+<label>散戶熱度主觀評分 0-10 <input id="m_retailHeat" type="number" min="0" max="10" value="8"></label>
+</div></div>
 
-      <section class="grid two">
-        <div class="card">
-          <h2>③ 融資、散戶與大戶</h2>
-          <div class="form-grid">
-            <label>融資餘額增減（億元）<input id="m_marginChange" type="number" value="80"></label>
-            <label>融資餘額總額（億元）<input id="m_marginTotal" type="number" value="5360"></label>
-            <label>大盤股東人數變化 % <input id="m_retailPeopleChange" type="number" step="0.01" value="0.35"></label>
-            <label>小散戶級距占比變化 % <input id="m_retailRatioChange" type="number" step="0.01" value="0.25"></label>
-            <label>千張大戶占比變化 % <input id="m_bigHolderChange" type="number" step="0.01" value="-0.30"></label>
-            <label>散戶熱度主觀評分 0-10 <input id="m_retailHeat" type="number" min="0" max="10" value="8"></label>
-          </div>
-          <p class="hint">TDCC 是週資料，大盤散戶變化可先用主要權值股與熱門族群加總觀察。</p>
-        </div>
+<div class="card"><h2>④ KD、匯率與宏觀</h2><div class="form-grid">
+<label>大盤 K 值 <input id="m_k" type="number" step="0.01" value="82"></label>
+<label>大盤 D 值 <input id="m_d" type="number" step="0.01" value="86"></label>
+<label>美元兌台幣 <input id="m_usdtwd" type="number" step="0.001" value="31.50"></label>
+<label>AI / 電子權值占比估計 % <input id="m_aiWeight" type="number" step="1" value="80"></label>
+<label>弱台幣警戒線 <input id="m_fxWarn" type="number" step="0.001" value="31.50"></label>
+<label>AI 主線是否轉弱 <select id="m_aiWeak"><option value="no">否 / 還沒有</option><option value="yes">是 / 已轉弱</option></select></label>
+</div></div>
+</section>
+</section>
 
-        <div class="card">
-          <h2>④ KD、匯率與宏觀</h2>
-          <div class="form-grid">
-            <label>大盤 K 值 <input id="m_k" type="number" step="0.01" value="82"></label>
-            <label>大盤 D 值 <input id="m_d" type="number" step="0.01" value="86"></label>
-            <label>美元兌台幣 <input id="m_usdtwd" type="number" step="0.001" value="31.50"></label>
-            <label>AI / 電子權值占比估計 % <input id="m_aiWeight" type="number" step="1" value="80"></label>
-            <label>弱台幣警戒線 <input id="m_fxWarn" type="number" step="0.001" value="31.50"></label>
-            <label>AI 主線是否轉弱
-              <select id="m_aiWeak">
-                <option value="no">否 / 還沒有</option>
-                <option value="yes">是 / 已轉弱</option>
-              </select>
-            </label>
-          </div>
-          <p class="hint">弱台幣會放大出口股財報，但也會壓縮一般民眾購買力。</p>
-        </div>
-      </section>
-    </section>
+<section id="stockPanel" class="hidden">
+<section class="grid two">
+<div class="card"><h2>① 個股量價</h2><div class="form-grid">
+<label>股票代號 <input id="s_code" value="2330"></label><label>股票名稱 <input id="s_name" value="台積電"></label>
+<label>收盤價 <input id="s_close" type="number" step="0.01" value="1000"></label><label>漲跌幅 % <input id="s_pct" type="number" step="0.01" value="-1.5"></label>
+<label>今日成交量 <input id="s_vol" type="number" value="80000"></label><label>20日均量 <input id="s_avgVol" type="number" value="52000"></label>
+</div></div>
+<div class="card"><h2>② 個股籌碼</h2><div class="form-grid">
+<label>外資買賣超（張）<input id="s_foreign" type="number" value="-8000"></label><label>投信買賣超（張）<input id="s_trust" type="number" value="1200"></label>
+<label>自營商買賣超（張）<input id="s_dealer" type="number" value="-900"></label><label>融資增減（張）<input id="s_margin" type="number" value="2200"></label>
+<label>小散戶占比變化 % <input id="s_retail" type="number" step="0.01" value="0.45"></label><label>千張大戶占比變化 % <input id="s_big" type="number" step="0.01" value="-0.35"></label>
+<label>K 值 <input id="s_k" type="number" step="0.01" value="78"></label><label>D 值 <input id="s_d" type="number" step="0.01" value="82"></label>
+</div></div>
+</section>
+</section>
 
-    <section id="stockPanel" class="hidden">
-      <section class="grid two">
-        <div class="card">
-          <h2>① 個股量價</h2>
-          <div class="form-grid">
-            <label>股票代號 <input id="s_code" value="2330"></label>
-            <label>股票名稱 <input id="s_name" value="台積電"></label>
-            <label>收盤價 <input id="s_close" type="number" step="0.01" value="1000"></label>
-            <label>漲跌幅 % <input id="s_pct" type="number" step="0.01" value="-1.5"></label>
-            <label>今日成交量 <input id="s_vol" type="number" value="80000"></label>
-            <label>20日均量 <input id="s_avgVol" type="number" value="52000"></label>
-          </div>
-        </div>
+<section class="actions">
+<button id="analyzeBtn" type="button">開始研判</button>
+<button id="saveBtn" class="secondary" type="button">儲存今天紀錄</button>
+<button id="demoBtn" class="secondary" type="button">載入 7 天範例線圖</button>
+<button id="clearBtn" class="ghost" type="button">清除本機紀錄</button>
+</section>
 
-        <div class="card">
-          <h2>② 個股籌碼</h2>
-          <div class="form-grid">
-            <label>外資買賣超（張）<input id="s_foreign" type="number" value="-8000"></label>
-            <label>投信買賣超（張）<input id="s_trust" type="number" value="1200"></label>
-            <label>自營商買賣超（張）<input id="s_dealer" type="number" value="-900"></label>
-            <label>融資增減（張）<input id="s_margin" type="number" value="2200"></label>
-            <label>小散戶占比變化 % <input id="s_retail" type="number" step="0.01" value="0.45"></label>
-            <label>千張大戶占比變化 % <input id="s_big" type="number" step="0.01" value="-0.35"></label>
-          </div>
-        </div>
-      </section>
+<section class="grid three"><div class="card"><h3>量價警訊</h3><p id="volSignal">—</p></div><div class="card"><h3>籌碼警訊</h3><p id="chipSignal">—</p></div><div class="card"><h3>散戶／大戶</h3><p id="holderSignal">—</p></div></section>
 
-      <section class="grid two">
-        <div class="card">
-          <h2>③ 個股 KD</h2>
-          <div class="form-grid">
-            <label>K 值 <input id="s_k" type="number" step="0.01" value="78"></label>
-            <label>D 值 <input id="s_d" type="number" step="0.01" value="82"></label>
-          </div>
-        </div>
-        <div class="card">
-          <h2>④ 個股結論</h2>
-          <p class="hint">個股版用來看單一股票是否「爆量漲不動、外資賣、融資增、散戶增、大戶降」。</p>
-        </div>
-      </section>
-    </section>
+<section class="card"><h2>本機歷史紀錄</h2><div class="table-wrap"><table id="historyTable"><thead><tr><th>日期</th><th>模式</th><th>標的</th><th>風險</th><th>分數</th><th>成交/量</th><th>價格/指數</th><th>融資</th></tr></thead><tbody></tbody></table></div></section>
+<footer><p>危險組合：爆量翻黑 + 外資賣超 + 融資增加 + 散戶增加 + 千張大戶下降。</p><p>這是風險控管工具，不是買賣建議。</p></footer>
+</main>
 
-    <section class="actions">
-      <button id="analyzeBtn">開始研判</button>
-      <button id="saveBtn" class="secondary">儲存今天紀錄</button>
-      <button id="clearBtn" class="ghost">清除本機紀錄</button>
-    </section>
+<script>
+(function(){
+let mode="market", chartType="risk";
+const $=id=>document.getElementById(id), n=id=>Number($(id).value||0), val=id=>$(id).value;
+function classify(score){if(score>=70)return["偏危險","danger"];if(score>=45)return["觀察中","watch"];return["偏健康","good"];}
+function setMode(next){mode=next;$("marketPanel").classList.toggle("hidden",mode!=="market");$("stockPanel").classList.toggle("hidden",mode!=="stock");$("marketModeBtn").classList.toggle("active",mode==="market");$("stockModeBtn").classList.toggle("active",mode==="stock");$("resultTitle").textContent=mode==="market"?"今日大盤風險結果":"今日個股風險結果";render();}
+function setChart(t){chartType=t;["Risk","Vol","Price","Margin"].forEach(x=>$("chart"+x+"Btn").classList.remove("active"));$({"risk":"chartRiskBtn","vol":"chartVolBtn","price":"chartPriceBtn","margin":"chartMarginBtn"}[t]).classList.add("active");drawChart();}
 
-    <section class="grid three">
-      <div class="card mini"><h3>量價警訊</h3><p id="volSignal">—</p></div>
-      <div class="card mini"><h3>籌碼警訊</h3><p id="chipSignal">—</p></div>
-      <div class="card mini"><h3>散戶／大戶</h3><p id="holderSignal">—</p></div>
-    </section>
+function analyzeMarket(){
+const twii=n("m_twii"),twiiPct=n("m_twiiPct"),turnover=n("m_turnover"),avg=Math.max(1,n("m_avgTurnover20")),volRatio=turnover/avg;
+const otcPct=n("m_otcPct"),futChange=n("m_futChange"),foreign=n("m_foreignNet"),trust=n("m_trustNet"),dealer=n("m_dealerNet"),instNet=foreign+trust+dealer,futureNetChange=n("m_futureNetChange");
+const marginChange=n("m_marginChange"),marginTotal=n("m_marginTotal"),retailPeople=n("m_retailPeopleChange"),retailRatio=n("m_retailRatioChange"),big=n("m_bigHolderChange"),heat=n("m_retailHeat");
+const k=n("m_k"),d=n("m_d"),usdtwd=n("m_usdtwd"),fxWarn=n("m_fxWarn"),aiWeight=n("m_aiWeight"),aiWeak=val("m_aiWeak"),instBuy=n("m_instBuy"),instSell=n("m_instSell");
+const instParticipation=Math.min(100,Math.max(0,(instBuy+instSell)/(2*Math.max(1,turnover))*100)),otherParticipation=Math.max(0,100-instParticipation);
+let score=0,reasons=[];
+if(volRatio>=1.5&&twiiPct<=0){score+=28;reasons.push("大盤爆量翻黑：量價背離，是高檔換手最重要警訊。");}
+else if(volRatio>=1.4&&twiiPct<0.5){score+=22;reasons.push("成交金額高於均量很多，但指數推升不足。");}
+else if(volRatio>=1.2&&twiiPct>0){score+=8;reasons.push("量增價漲，短線偏熱。");}
+if(foreign<0){score+=14;reasons.push("外資賣超，法人高檔調節風險上升。");}
+if(instNet<0){score+=10;reasons.push("三大法人合計賣超。");}
+if(futureNetChange<0){score+=10;reasons.push("外資期貨部位偏空變化，短線避險味道提高。");}
+if(marginChange>0){score+=14;reasons.push("融資餘額增加，散戶槓桿承接風險上升。");}
+if(retailPeople>0||retailRatio>0){score+=14;reasons.push("散戶股東人數或小散戶級距上升。");}
+if(big<0){score+=16;reasons.push("千張大戶占比下降，籌碼集中度轉弱。");}
+if(otcPct<twiiPct){score+=8;reasons.push("櫃買弱於加權，中小型股承壓。");}
+if(futChange<0&&twiiPct<0){score+=8;reasons.push("台指期同步轉弱，期貨市場偏保守。");}
+if(k>80&&d>80&&k<d){score+=10;reasons.push("大盤 KD 高檔死亡交叉。");}else if(k>80&&d>80){score+=6;reasons.push("大盤 KD 高檔過熱。");}
+if(usdtwd>=fxWarn&&aiWeight>=70){score+=8;reasons.push("弱台幣放大 AI 出口財報，但也壓縮民眾購買力。");}
+if(aiWeak==="yes"){score+=12;reasons.push("AI / 電子權值主線轉弱，台股支撐風險升高。");}
+if(heat>=8){score+=8;reasons.push("散戶熱度高，FOMO 追價風險升高。");}
+if(instParticipation>55){score+=6;reasons.push("法人交易參與率偏高，盤面受法人與外資主導。");}
+score=Math.max(0,Math.min(100,Math.round(score)));const [level,cls]=classify(score);
+const conclusion=score>=70?"大盤高檔換手 / 出貨風險高：不追高，等待量縮、外資回補、融資降溫。":score>=45?"大盤偏熱：可以研究，但不適合重押，收盤後要確認法人、融資與集保。":"大盤暫時偏健康，可觀察量能是否延續。";
+return{score,level,cls,conclusion,reasons,target:"加權指數 / 大盤",turnover,price:twii,margin:marginTotal,marginChange,
+volSignal:`成交金額 ${turnover.toLocaleString()} 億，20日均量 ${avg.toLocaleString()} 億，量比 ${volRatio.toFixed(2)} 倍；加權漲跌幅 ${twiiPct.toFixed(2)}%。`,
+chipSignal:`外資 ${foreign.toLocaleString()} 億、三大法人合計 ${instNet.toLocaleString()} 億、融資增減 ${marginChange.toLocaleString()} 億。`,
+holderSignal:`散戶人數 ${retailPeople.toFixed(2)}%，小散戶 ${retailRatio.toFixed(2)}%，千張大戶 ${big.toFixed(2)}%。法人參與率估 ${instParticipation.toFixed(1)}%，其他交易估 ${otherParticipation.toFixed(1)}%。`};
+}
 
-    <section class="card">
-      <h2>本機歷史紀錄</h2>
-      <div class="table-wrap">
-        <table id="historyTable">
-          <thead><tr><th>日期</th><th>模式</th><th>標的</th><th>風險</th><th>分數</th><th>結論</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <footer>
-      <p>危險組合：爆量翻黑 + 融資增加 + 外資賣超 + 散戶增加 + 千張大戶下降。</p>
-      <p>這是風險控管工具，不是買賣建議。</p>
-    </footer>
-  </main>
-  <script src="app.js"></script>
-</body>
-</html>
+function analyzeStock(){
+const pct=n("s_pct"),vol=n("s_vol"),avg=Math.max(1,n("s_avgVol")),volRatio=vol/avg,close=n("s_close");
+const foreign=n("s_foreign"),trust=n("s_trust"),dealer=n("s_dealer"),inst=foreign+trust+dealer,margin=n("s_margin"),retail=n("s_retail"),big=n("s_big"),k=n("s_k"),d=n("s_d");
+let score=0,reasons=[];if(volRatio>=1.8&&pct<=0){score+=25;reasons.push("個股爆量翻黑，疑似高檔換手。");}else if(volRatio>=1.5&&pct<1){score+=18;reasons.push("個股量增但價格推升不足。");}
+if(foreign<0){score+=14;reasons.push("外資賣超。");}if(inst<0){score+=10;reasons.push("三大法人合計賣超。");}if(margin>0){score+=14;reasons.push("融資增加。");}if(retail>0){score+=14;reasons.push("小散戶占比增加。");}if(big<0){score+=18;reasons.push("千張大戶占比下降。");}if(k>80&&d>80&&k<d){score+=10;reasons.push("KD 高檔死亡交叉。");}
+score=Math.max(0,Math.min(100,Math.round(score)));const[level,cls]=classify(score);const conclusion=score>=70?"個股高檔換手 / 出貨風險高：避免追價。":score>=45?"個股偏熱，先觀察籌碼確認。":"個股暫時偏健康。";
+return{score,level,cls,conclusion,reasons,target:$("s_code").value+" "+$("s_name").value,turnover:vol,price:close,margin:margin,marginChange:margin,
+volSignal:`量比 ${volRatio.toFixed(2)} 倍；漲跌幅 ${pct.toFixed(2)}%。`,chipSignal:`外資 ${foreign.toLocaleString()} 張、三大法人合計 ${inst.toLocaleString()} 張、融資 ${margin.toLocaleString()} 張。`,holderSignal:`小散戶 ${retail.toFixed(2)}%，千張大戶 ${big.toFixed(2)}%。`};
+}
+function getResult(){return mode==="market"?analyzeMarket():analyzeStock();}
+function render(){const r=getResult();$("riskBadge").textContent=r.level;$("riskBadge").className="badge "+r.cls;$("scoreLine").innerHTML=`風險分數：<span class="${r.cls}">${r.score}</span> / 100　｜　${r.level}`;$("meterBar").style.width=r.score+"%";$("resultText").innerHTML=`<p><b>監控標的：</b>${r.target}</p><p><b>結論：</b>${r.conclusion}</p><p><b>主要原因：</b></p><ul>${r.reasons.map(x=>`<li>${x}</li>`).join("")||"<li>目前未出現明顯高風險組合。</li>"}</ul>`;$("volSignal").textContent=r.volSignal;$("chipSignal").textContent=r.chipSignal;$("holderSignal").textContent=r.holderSignal;drawChart();}
+function key(){return "twRiskHistoryV4_"+mode;}
+function saveHistory(){const r=getResult();const arr=JSON.parse(localStorage.getItem(key())||"[]");arr.unshift({date:new Date().toISOString().slice(5,10),mode:mode==="market"?"大盤":"個股",target:r.target,level:r.level,score:r.score,conclusion:r.conclusion,turnover:r.turnover,price:r.price,margin:r.margin,marginChange:r.marginChange});localStorage.setItem(key(),JSON.stringify(arr.slice(0,120)));renderHistory();drawChart();}
+function renderHistory(){const arr=JSON.parse(localStorage.getItem(key())||"[]");$("historyTable").querySelector("tbody").innerHTML=arr.map(x=>`<tr><td>${x.date}</td><td>${x.mode}</td><td>${x.target}</td><td>${x.level}</td><td>${x.score}</td><td>${Number(x.turnover).toLocaleString()}</td><td>${Number(x.price).toLocaleString()}</td><td>${Number(x.margin).toLocaleString()}</td></tr>`).join("");}
+function loadDemo(){const demo=[["05-22",48,9800,43100,5100],["05-23",55,11200,43500,5180],["05-24",62,12800,44100,5250],["05-25",70,14200,44500,5310],["05-26",78,15600,44250,5360],["05-27",86,16300,44050,5410],["05-28",100,15500,43837,5460]].map(x=>({date:x[0],mode:mode==="market"?"大盤":"個股",target:mode==="market"?"加權指數 / 大盤":"2330 台積電",level:x[1]>=70?"偏危險":x[1]>=45?"觀察中":"偏健康",score:x[1],conclusion:"範例資料",turnover:x[2],price:x[3],margin:x[4],marginChange:0}));localStorage.setItem(key(),JSON.stringify(demo.reverse()));renderHistory();drawChart();}
+function drawChart(){const canvas=$("trendCanvas"),ctx=canvas.getContext("2d"),rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;canvas.width=rect.width*dpr;canvas.height=rect.height*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);const w=rect.width,h=rect.height;ctx.clearRect(0,0,w,h);let arr=JSON.parse(localStorage.getItem(key())||"[]").slice().reverse();if(arr.length===0){ctx.fillStyle="#9fb3c8";ctx.font="16px sans-serif";ctx.fillText("尚無資料：請按「儲存今天紀錄」或「載入 7 天範例線圖」",18,42);return;}
+let field=chartType==="risk"?"score":chartType==="vol"?"turnover":chartType==="price"?"price":"margin";let label=chartType==="risk"?"風險分數":chartType==="vol"?(mode==="market"?"成交金額":"成交量"):chartType==="price"?(mode==="market"?"加權指數":"收盤價"):"融資";let vals=arr.map(x=>Number(x[field]||0));let min=Math.min(...vals),max=Math.max(...vals);if(min===max){min-=1;max+=1;}const padL=50,padR=20,padT=30,padB=46;ctx.strokeStyle="rgba(255,255,255,.12)";ctx.lineWidth=1;for(let i=0;i<4;i++){let y=padT+(h-padT-padB)*i/3;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(w-padR,y);ctx.stroke();}
+ctx.fillStyle="#9fb3c8";ctx.font="12px sans-serif";ctx.fillText(label,padL,18);ctx.fillText(max.toFixed(0),8,padT+4);ctx.fillText(min.toFixed(0),8,h-padB+4);
+function x(i){return padL+(w-padL-padR)*(arr.length===1?0.5:i/(arr.length-1));}function y(v){return padT+(max-v)/(max-min)*(h-padT-padB);}
+ctx.strokeStyle=chartType==="risk"?"#fb7185":chartType==="vol"?"#fbbf24":chartType==="price"?"#4da3ff":"#34d399";ctx.lineWidth=3;ctx.beginPath();vals.forEach((v,i)=>{i?ctx.lineTo(x(i),y(v)):ctx.moveTo(x(i),y(v));});ctx.stroke();
+vals.forEach((v,i)=>{ctx.beginPath();ctx.arc(x(i),y(v),4,0,Math.PI*2);ctx.fillStyle="#eef6ff";ctx.fill();});
+ctx.fillStyle="#9fb3c8";ctx.font="11px sans-serif";arr.forEach((p,i)=>{if(arr.length<=8||i%Math.ceil(arr.length/6)===0)ctx.fillText(p.date,x(i)-14,h-18);});
+}
+$("marketModeBtn").onclick=()=>{setMode("market");renderHistory();drawChart();};$("stockModeBtn").onclick=()=>{setMode("stock");renderHistory();drawChart();};
+$("chartRiskBtn").onclick=()=>setChart("risk");$("chartVolBtn").onclick=()=>setChart("vol");$("chartPriceBtn").onclick=()=>setChart("price");$("chartMarginBtn").onclick=()=>setChart("margin");
+$("analyzeBtn").onclick=render;$("saveBtn").onclick=()=>{render();saveHistory();};$("demoBtn").onclick=loadDemo;$("clearBtn").onclick=()=>{localStorage.removeItem(key());renderHistory();drawChart();};
+window.addEventListener("resize",drawChart);renderHistory();render();
+})();
+</script>
+</body></html>
